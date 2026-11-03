@@ -14,6 +14,20 @@ def abrir_archivo_csv_gz():
         # Leer el contenido del archivo CSV y convertirlo en una lista de listas
         return list(csv.reader(archivo, delimiter='\t')) 
 
+def separar_metricas(metricas):
+    
+    return {
+        # Retorna un diccionario clave valor (int)
+        clave: int(valor) 
+        # Para cada par clave:valor
+        for clave, valor in (
+            # En la columna metrics, donde se separan clave y valor con un ':'
+            par.split(":",1) 
+            # Para cada par separado por comas en la columna metrics
+            for par in metricas.split(",")
+        )
+    }
+
 def pregunta_06():
     """
     La quinta columna (`metrics`) contiene pares `clave:valor` separados por
@@ -29,4 +43,24 @@ def pregunta_06():
         [("aaa", 1, 9), ("bbb", 1, 9), ...]
     """
 
-    raise NotImplementedError
+    valores = {}
+    for fila in abrir_archivo_csv_gz():
+        # Tengo las metricas separadas para cada fila en un diccionario
+        metricas = separar_metricas(fila[4])
+
+        for clave, valor in metricas.items():
+            if clave not in valores:
+                # La iteración empieza asignando el 1er valor de max y min
+                valores[clave] = [valor, valor]
+            else:
+                if valor < valores[clave][0]:
+                    valores[clave][0] = valor
+                elif valor > valores[clave][1]:
+                    valores[clave][1] = valor
+                else:
+                    continue
+
+    return [
+        (clave, min, max) for clave, (min, max) in sorted(valores.items())
+    ]
+
