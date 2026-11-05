@@ -1,3 +1,13 @@
+from pathlib import Path
+import pandas as pd
+
+# Definir la ruta del archivo CSV comprimido
+RUTA_ACTIVIDAD = Path(__file__).resolve().parents[1]/"data"
+
+# Función para abrir el archivo TSV
+def abrir_tsv(nombre_archivo):
+    return pd.read_csv(RUTA_ACTIVIDAD/nombre_archivo, sep='\t')
+
 def pregunta_03():
     """
     Usando `data/tbl0.tsv`, cuente cuántos registros hay para cada categoría
@@ -13,4 +23,9 @@ def pregunta_03():
         ...
     """
 
-    raise NotImplementedError
+    tabla = abrir_tsv("tbl0.tsv")
+    # Retornar la columna c1 de la tabla, value counts entrega la frecuencia
+    #   de cada valor y sort_index ordena el índice alfabéticamente.
+    return tabla['c1'].value_counts().sort_index()
+
+

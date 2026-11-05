@@ -1,3 +1,13 @@
+from pathlib import Path
+import pandas as pd
+
+# Definir la ruta del archivo CSV comprimido
+RUTA_ACTIVIDAD = Path(__file__).resolve().parents[1]/"data"
+
+# Función para abrir el archivo TSV
+def abrir_tsv(nombre_archivo):
+    return pd.read_csv(RUTA_ACTIVIDAD/nombre_archivo, sep='\t')
+
 def pregunta_05():
     """
     Usando `data/tbl0.tsv`, encuentre el valor máximo de la columna `c2` para
@@ -13,4 +23,7 @@ def pregunta_05():
         ...
     """
 
-    raise NotImplementedError
+    tabla = abrir_tsv("tbl0.tsv")
+    # Retornar, ordenados alfabéticamente, los máximos de la columna c2,
+    #   agrupados por la columna c1.
+    return tabla.groupby('c1')['c2'].max().sort_index()
