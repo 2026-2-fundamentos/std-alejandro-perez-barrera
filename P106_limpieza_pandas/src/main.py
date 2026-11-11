@@ -91,9 +91,192 @@ def clean_purchase_date_column(df):
 
         return series.str.replace(r"(\d{2})/(\d{2})/(\d{4})", convert_date, regex=True)
 
+    def convert_dd_mm_yyyy_to_yyyy_mm_dd_separated_with_dots(series):
+        # Corrige fechas en formato "DD.MM.YYYY" a "YYYY-MM-DD"
+        return series.str.replace(r"(\d{2})\.(\d{2})\.(\d{4})", r"\3-\2-\1", regex=True)
+
+    def convert_dd_mm_yy_to_yyyy_mm_dd_separated_with_hyphens(series):
+        # Corrige fechas en formato "DD-MM-YY" a "YYYY-MM-DD"
+        return series.str.replace(
+            r"^(\d{2})-(\d{2})-(\d{2})$", r"20\3-\2-\1", regex=True
+        )
+
     df["purchase_date"] = df["purchase_date"].str.strip()
     df["purchase_date"] = convert_yyyy_s_mm_s_dd_to_yyyy_mm_dd(df["purchase_date"])
     df["purchase_date"] = convert_mmddyyyy_to_yyyy_mm_dd(df["purchase_date"])
+    df["purchase_date"] = convert_dd_mm_yyyy_to_yyyy_mm_dd_separated_with_dots(
+        df["purchase_date"]
+    )
+    df["purchase_date"] = convert_dd_mm_yy_to_yyyy_mm_dd_separated_with_hyphens(
+        df["purchase_date"]
+    )
+
+    return df
+
+
+def clean_amount_column(df):
+
+    def clean_strings_ending_with_k(series):
+        # Convierte valores como "1.5K" a "1500"
+        def convert_value(value):
+            if isinstance(value, str) and value.endswith("K"):
+                try:
+                    return int(float(value[:-1]) * 1000)
+                except ValueError:
+                    return value
+            return value
+
+        return series.apply(convert_value)
+
+    def clean_strings_starting_with_COP(series):
+        # Convierte valores como "COP 1,250,000" a "1250000"
+        def convert_value(value):
+            if isinstance(value, str) and value.startswith("COP"):
+                try:
+                    return int(value[3:].replace(",", "").strip())
+                except ValueError:
+                    return value
+            return value
+
+        return series.apply(convert_value)
+
+    def clean_strings_starting_with_dollar(series):
+        # Convierte valores como "$1,250,000" a "1250000"
+        def convert_value(value):
+            if isinstance(value, str) and value.startswith("$"):
+                try:
+                    return int(value[1:].replace(",", "").strip())
+                except ValueError:
+                    return value
+            return value
+
+        return series.apply(convert_value)
+
+    def remove_dots(series):
+        # Elimina los puntos de los valores numéricos
+        def convert_value(value):
+            if isinstance(value, str):
+                try:
+                    return int(value.replace(".", "").strip())
+                except ValueError:
+                    return value
+            return value
+
+        return series.apply(convert_value)
+
+    df["amount"] = df["amount"].str.strip()
+    df["amount"] = clean_strings_ending_with_k(df["amount"])
+    df["amount"] = clean_strings_starting_with_COP(df["amount"])
+    df["amount"] = clean_strings_starting_with_dollar(df["amount"])
+    df["amount"] = remove_dots(df["amount"])
+
+    return df
+
+
+def clean_discount_column(df):
+    # Limpia la columna de descuento
+    df["discount"] = df["discount"].str.strip()
+    df["discount"] = df["discount"].str.replace("%", "", regex=False)
+    df["discount"] = df["discount"].map(
+        lambda x: float(x) / 100 if not pd.isna(x) and float(x) > 1 else x
+    )
+
+    return df
+
+def clean_weight_column(df):
+    #Limpiar comas
+    def limpiar_comas(value):
+        if isinstance(value, str):
+            return value.replace(",", ".")
+
+    # Convertir a kilos si termina en ' ton' y convertir a float
+    def quitar_ton_y_convertir_a_kilos_float(value):
+        if isinstance(value, str):
+            value = value.strip()
+            if value.endswith(" ton"):
+                try:
+                    return float(value[:-4].strip()) * 1000
+                except ValueError:
+                    return value
+        return value
+
+    # Quitar ' kg' y convertir a float
+    def quitar_kg_y_convertir_a_float(value):
+        if isinstance(value, str):
+            value = value.strip()
+            if value.endswith(" kg"):
+                try:
+                    return float(value[:-3].strip())
+                except ValueError:
+                    return value
+        return value
+
+    # Quitar ' g' y convertir a kilos en float
+    def quitar_g_y_convertir_a_kilos_float(value):
+        if isinstance(value, str):
+            value = value.strip()
+            if value.endswith(" g"):
+                try:
+                    return float(value[:-2].strip()) / 1000
+                except ValueError:
+                    return value
+        return value
+
+    df["weight"] = df["weight"].apply(limpiar_comas)
+    df["weight"] = df["weight"].apply(quitar_ton_y_convertir_a_kilos_float)
+    df["weight"] = df["weight"].apply(quitar_kg_y_convertir_a_float)
+    df["weight"] = df["weight"].apply(quitar_g_y_convertir_a_kilos_float)
+    return df
+
+def clean_unit_price_column(df):
+    # Limpiar la columna de precio unitario
+
+    # Eliminar $ del inicio
+    def quitar_signo_peso(value):
+        if isinstance(value, str):
+            return value.replace("$", "")
+        return value
+
+    # Quitar comas
+    def quitar_comas(value):
+        if isinstance(value, str):
+            return value.replace(",", "")
+        return value
+
+    # Quitar puntos salvo los decimales
+    def quitar_puntos_menos_los_decimales(value):
+        # Contar cuantos puntos tiene, quitar todos menos el último
+        if isinstance(value, str):
+            puntos = value.count(".") # Si hay >1 punto
+            if puntos > 1:
+                partes = value.split(".") # Separo por cada punto
+                # Junto todas las partes menos la última, agrego un punto y
+                #   finalmente la última parte.
+                return "".join(partes[:-1]) + "." + partes[-1]
+        return value
+
+    df["unit_price"] = df["unit_price"].apply(quitar_signo_peso)
+    df["unit_price"] = df["unit_price"].apply(quitar_comas)
+    df["unit_price"] = df["unit_price"].apply(quitar_puntos_menos_los_decimales)
+
+    #df["unit_price"] = df["unit_price"].str.strip()
+    #df["unit_price"] = df["unit_price"].str.replace(",", "", regex=False)
+    #df["unit_price"] = df["unit_price"].astype(float)
+
+    return df
+
+
+# Limpiar el correo
+def clean_contact_email_column(df):
+    # Eliminar espacios en blanco al inicio y al final
+    df["contact_email"] = df["contact_email"].str.strip()
+
+    # Convertir a minúsculas
+    df["contact_email"] = df["contact_email"].str.lower()
+
+    # Quitar 'sin correo' y reemplazarlo por NaN
+    df["contact_email"] = df["contact_email"].replace("sin correo", pd.NA)
+
     return df
 
 
@@ -104,12 +287,13 @@ def main():
     df = clean_country_column(df)
     df = clean_city_column(df)
     df = clean_purchase_date_column(df)
+    df = clean_amount_column(df)
+    df = clean_discount_column(df)
+    df = clean_weight_column(df)
+    df = clean_unit_price_column(df)
+    df = clean_contact_email_column(df)
     df.to_csv(OUTPUT_FILE, index=False)
 
 
 if __name__ == "__main__":
     main()
-
-
-
-
